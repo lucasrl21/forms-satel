@@ -294,4 +294,32 @@ def apagar():
                 padding: 20px;
                 border-radius: 8px;
                 box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                width: 350
+                width: 350px;
+                text-align: center;
+            }
+            .button {
+                background: #008000;
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 18px;
+                font-weight: bold;
+                padding: 10px;
+                border-radius: 4px;
+                text-decoration: none;
+                display: inline-block;
+                margin-top: 10px;
+            }
+            .button:hover {
+                background: #006400;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Histórico apagado com sucesso!</h2>
+            <a href="/" class="button">Voltar ao Formulário</a>
+        </div>
+    </body>
+    </html>
+    '''
