@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, send_file
+from flask import Flask, request, render_template_string, send_file, jsonify
 import pandas as pd
 import os
 
@@ -189,7 +189,7 @@ def download():
 @app.route("/listar", methods=["GET", "POST"])
 def listar():
     df = pd.read_excel(EXCEL_FILE)
-    registros = df.to_html(classes="table table-striped", index=True)
+    registros = df.to_html(classes="table table-striped", index=True, escape=False)
 
     if request.method == "POST":
         selected_indices = request.form.getlist("selected_records")
@@ -244,7 +244,7 @@ def listar():
             </body>
             </html>
             '''
-        
+    
     return render_template_string(f'''
     <html>
     <head>
@@ -253,12 +253,35 @@ def listar():
             table {{ width: 80%; margin: 20px auto; border-collapse: collapse; }}
             th, td {{ padding: 10px; text-align: left; border: 1px solid #ccc; }}
             th {{ background-color: #f2f2f2; }}
+            input[type="checkbox"] {{
+                margin-right: 10px;
+            }}
         </style>
+        <script>
+            function confirmarApagar() {{
+                var confirmar = confirm("Deseja realmente apagar os registros selecionados?");
+                return confirmar;
+            }}
+        </script>
     </head>
     <body>
         <h2 style="text-align:center;">Lista de Registros</h2>
-        <form method="post">
-            {registros}
+        <form method="post" onsubmit="return confirmarApagar()">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Selecionar</th>
+                        <th>Nome do Colaborador</th>
+                        <th>ID do Checklist</th>
+                        <th>Data de Início</th>
+                        <th>Data de Fim</th>
+                        <th>Descrição da Atividade</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {registros}
+                </tbody>
+            </table>
             <div style="text-align:center;">
                 <input type="submit" value="Apagar Selecionados" class="button">
             </div>
@@ -270,56 +293,5 @@ def listar():
     </html>
     ''')
 
-@app.route("/apagar", methods=["GET", "POST"])
-def apagar():
-    df = pd.DataFrame(columns=["Nome do Colaborador", "ID do Checklist", "Data de Início", "Data de Fim", "Duração", "Descrição da Atividade"])
-    df.to_excel(EXCEL_FILE, index=False)
-
-    return '''
-    <html>
-    <head>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-                background-color: #ffffff;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                height: 100vh;
-                margin: 0;
-                flex-direction: column;
-            }
-            .container {
-                background: #808080;
-                padding: 20px;
-                border-radius: 8px;
-                box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                width: 350px;
-                text-align: center;
-            }
-            .button {
-                background: #008000;
-                color: white;
-                border: none;
-                cursor: pointer;
-                font-size: 18px;
-                font-weight: bold;
-                padding: 10px;
-                border-radius: 4px;
-                text-decoration: none;
-                display: inline-block;
-                margin-top: 10px;
-            }
-            .button:hover {
-                background: #006400;
-            }
-        </style>
-    </head>
-    <body>
-        <div class="container">
-            <h2>Histórico apagado com sucesso!</h2>
-            <a href="/" class="button">Voltar ao Formulário</a>
-        </div>
-    </body>
-    </html>
-    '''
+if __name__ == "__main__":
+    app.run(debug=True)
