@@ -187,11 +187,65 @@ def form():
 def download():
     return send_file(EXCEL_FILE, as_attachment=True)
 
-@app.route("/listar")
+@app.route("/listar", methods=["GET", "POST"])
 def listar():
     df = pd.read_excel(EXCEL_FILE)
-    registros = df.to_html(classes="table table-striped", index=False)
+    registros = df.to_html(classes="table table-striped", index=True)
 
+    if request.method == "POST":
+        selected_indices = request.form.getlist("selected_records")
+        if selected_indices:
+            df.drop(df.index[[int(i) for i in selected_indices]], inplace=True)
+            df.to_excel(EXCEL_FILE, index=False)
+            return '''
+            <html>
+            <head>
+                <style>
+                    body {
+                        font-family: Arial, sans-serif;
+                        background-color: #ffffff;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        flex-direction: column;
+                    }
+                    .container {
+                        background: #808080;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+                        width: 350px;
+                        text-align: center;
+                    }
+                    .button {
+                        background: #008000;
+                        color: white;
+                        border: none;
+                        cursor: pointer;
+                        font-size: 18px;
+                        font-weight: bold;
+                        padding: 10px;
+                        border-radius: 4px;
+                        text-decoration: none;
+                        display: inline-block;
+                        margin-top: 10px;
+                    }
+                    .button:hover {
+                        background: #006400;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <h2>Registros apagados com sucesso!</h2>
+                    <a href="/listar" class="button">Ver Registros</a>
+                </div>
+            </body>
+            </html>
+            '''
+        
     return render_template_string(f'''
     <html>
     <head>
@@ -204,7 +258,12 @@ def listar():
     </head>
     <body>
         <h2 style="text-align:center;">Lista de Registros</h2>
-        {registros}
+        <form method="post">
+            {registros}
+            <div style="text-align:center;">
+                <input type="submit" value="Apagar Selecionados" class="button">
+            </div>
+        </form>
         <div style="text-align:center;">
             <a href="/" class="button">Voltar ao Formulário</a>
         </div>
@@ -214,7 +273,6 @@ def listar():
 
 @app.route("/apagar", methods=["GET", "POST"])
 def apagar():
-    # Apagar os registros do arquivo Excel
     df = pd.DataFrame(columns=["Nome do Colaborador", "ID do Checklist", "Data de Início", "Data de Fim", "Duração", "Descrição da Atividade"])
     df.to_excel(EXCEL_FILE, index=False)
 
