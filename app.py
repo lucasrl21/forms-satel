@@ -1,3 +1,21 @@
+from flask import Flask, request, render_template_string, send_file
+import pandas as pd
+import os
+
+# Definindo a aplicação Flask
+app = Flask(__name__)
+
+EXCEL_FILE = "checklist_data.xlsx"
+
+# Criar arquivo Excel se não existir
+def initialize_excel():
+    if not os.path.exists(EXCEL_FILE):
+        df = pd.DataFrame(columns=["Nome do Colaborador", "ID do Checklist", "Data de Início", "Data de Fim", "Duração", "Descrição da Atividade"])
+        with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False)
+
+initialize_excel()
+
 @app.route("/", methods=["GET", "POST"])
 def form():
     FORMULARIO_PAGE = '''
@@ -13,17 +31,14 @@ def form():
                     height: 100vh;
                     margin: 0;
                     flex-direction: column;
-                    padding: 10px;
                 }
                 .container {
                     background: #808080;
                     padding: 20px;
                     border-radius: 8px;
                     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                    width: 100%;
-                    max-width: 600px;
+                    width: 350px;
                     text-align: center;
-                    box-sizing: border-box;
                 }
                 img {
                     width: 100px;
@@ -36,7 +51,6 @@ def form():
                     border: 1px solid #ccc;
                     border-radius: 4px;
                     font-size: 16px;
-                    box-sizing: border-box;
                 }
                 input[type="submit"] {
                     background: #008000;
@@ -48,7 +62,6 @@ def form():
                     padding: 10px;
                     border-radius: 4px;
                     width: 100%;
-                    box-sizing: border-box;
                 }
                 input[type="submit"]:hover {
                     background: #006400;
@@ -67,34 +80,9 @@ def form():
                     align-items: center;
                     gap: 8px;
                     margin-top: 10px;
-                    width: 100%;
-                    box-sizing: border-box;
                 }
                 .button:hover {
                     background: #006400;
-                }
-
-                /* Media Queries */
-                @media (max-width: 768px) {
-                    body {
-                        padding: 20px;
-                    }
-
-                    .container {
-                        width: 100%;
-                        max-width: 100%;
-                        padding: 10px;
-                    }
-
-                    input, input[type="submit"], .button {
-                        font-size: 16px;
-                    }
-                }
-
-                @media (max-width: 480px) {
-                    .container {
-                        padding: 15px;
-                    }
                 }
             </style>
         </head>
@@ -192,3 +180,12 @@ def form():
         '''
     
     return render_template_string(FORMULARIO_PAGE)
+
+@app.route("/download")
+def download():
+    return send_file(EXCEL_FILE, as_attachment=True)
+
+# Rodando o servidor Flask
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
