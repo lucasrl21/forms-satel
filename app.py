@@ -104,6 +104,7 @@ def form():
                 </form>
                 <a href="/download" class="button">&#x1F4E5; Baixar Checklist</a>
                 <a href="/listar" class="button">&#x1F4C3; Ver Registros</a>
+                <a href="/apagar" class="button">&#x1F5D1; Apagar Histórico</a>
             </div>
         </body>
         </html>
@@ -210,6 +211,62 @@ def listar():
     </body>
     </html>
     ''')
+
+@app.route("/apagar", methods=["GET", "POST"])
+def apagar():
+    # Apagar os registros do arquivo Excel
+    df = pd.DataFrame(columns=["Nome do Colaborador", "ID do Checklist", "Data de Início", "Data de Fim", "Duração", "Descrição da Atividade"])
+    df.to_excel(EXCEL_FILE, index=False)
+
+    return '''
+    <html>
+    <head>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background-color: #ffffff;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100vh;
+                margin: 0;
+                flex-direction: column;
+            }
+            .container {
+                background: #808080;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
+                width: 350px;
+                text-align: center;
+            }
+            .button {
+                background: #008000;
+                color: white;
+                border: none;
+                cursor: pointer;
+                font-size: 18px;
+                font-weight: bold;
+                padding: 10px;
+                border-radius: 4px;
+                text-decoration: none;
+                display: inline-block;
+                margin-top: 10px;
+            }
+            .button:hover {
+                background: #006400;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>Histórico apagado com sucesso!</h2>
+            <a href="/" class="button">Voltar ao formulário</a>
+            <a href="/listar" class="button">Ver Registros</a>
+        </div>
+    </body>
+    </html>
+    '''
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
