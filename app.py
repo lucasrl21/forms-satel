@@ -279,7 +279,16 @@ def listar():
                     </tr>
                 </thead>
                 <tbody>
-                    {registros}
+                    {% for index, row in df.iterrows() %}
+                    <tr>
+                        <td><input type="checkbox" name="selected_records" value="{{ index }}"></td>
+                        <td>{{ row['Nome do Colaborador'] }}</td>
+                        <td>{{ row['ID do Checklist'] }}</td>
+                        <td>{{ row['Data de Início'] }}</td>
+                        <td>{{ row['Data de Fim'] }}</td>
+                        <td>{{ row['Descrição da Atividade'] }}</td>
+                    </tr>
+                    {% endfor %}
                 </tbody>
             </table>
             <div style="text-align:center;">
