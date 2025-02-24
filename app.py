@@ -103,6 +103,7 @@ def form():
                     <input type="submit" value="Salvar">
                 </form>
                 <a href="/download" class="button">&#x1F4E5; Baixar Checklist</a>
+                <a href="/listar" class="button">&#x1F4C3; Ver Registros</a>
             </div>
         </body>
         </html>
@@ -173,6 +174,7 @@ def form():
             <div class="container">
                 <h2>Registro salvo com sucesso!</h2>
                 <a href="/" class="button">Voltar ao formulário</a>
+                <a href="/listar" class="button">Ver Registros</a>
             </div>
         </body>
         </html>
@@ -184,7 +186,31 @@ def form():
 def download():
     return send_file(EXCEL_FILE, as_attachment=True)
 
+@app.route("/listar")
+def listar():
+    df = pd.read_excel(EXCEL_FILE)
+    registros = df.to_html(classes="table table-striped", index=False)
+
+    return render_template_string(f'''
+    <html>
+    <head>
+        <style>
+            body {{ font-family: Arial, sans-serif; }}
+            table {{ width: 80%; margin: 20px auto; border-collapse: collapse; }}
+            th, td {{ padding: 10px; text-align: left; border: 1px solid #ccc; }}
+            th {{ background-color: #f2f2f2; }}
+        </style>
+    </head>
+    <body>
+        <h2 style="text-align:center;">Lista de Registros</h2>
+        {registros}
+        <div style="text-align:center;">
+            <a href="/" class="button">Voltar ao Formulário</a>
+        </div>
+    </body>
+    </html>
+    ''')
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
-    
