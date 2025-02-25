@@ -15,9 +15,18 @@ def initialize_excel():
 
 initialize_excel()
 
-@app.route("/", methods=["GET", "POST"])
-def form():
-    FORMULARIO_PAGE = '''
+@app.route("/listar", methods=["GET", "POST"])
+def listar():
+    df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
+    
+    if request.method == "POST":
+        ids_para_excluir = request.form.getlist("selecionados")
+        df = df[~df["ID"].astype(str).isin(ids_para_excluir)]
+        df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
+    
+    registros_html = df.to_html(index=False, classes='table table-striped', escape=False)
+    
+    LISTAR_PAGE = '''
         <html>
         <head>
             <style>
@@ -32,147 +41,97 @@ def form():
                     flex-direction: column;
                 }
                 .container {
-                    background: #fff;
+                    background: #d3d3d3;
                     padding: 20px;
                     border-radius: 8px;
                     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                    width: 350px;
+                    width: 90%;
+                    max-width: 1200px;
                     text-align: center;
                 }
-                input {
-                    width: 100%;
-                    padding: 10px;
-                    margin: 5px 0;
-                    border: 1px solid #ccc;
+                .table-container {
+                    max-height: 500px;
+                    overflow-y: auto;
+                    overflow-x: auto;
+                    border: 1px solid #ddd;
                     border-radius: 4px;
-                    font-size: 16px;
                 }
-                input[type="submit"], .button {
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                }
+                th, td {
+                    padding: 10px;
+                    border: 1px solid #ddd;
+                    text-align: left;
+                }
+                th {
                     background: #28a745;
                     color: white;
+                }
+                a.button, button {
+                    background: #007bff;
+                    color: white;
                     border: none;
-                    cursor: pointer;
-                    font-size: 18px;
-                    font-weight: bold;
                     padding: 10px;
                     border-radius: 4px;
-                    width: 100%;
                     text-decoration: none;
-                    display: block;
+                    display: inline-block;
                     margin-top: 10px;
+                    cursor: pointer;
                 }
-                .button:hover { background: #218838; }
-                img {
-                    width: 100px;
-                    margin-bottom: 10px;
-                }
+                a.button:hover, button:hover { background: #0056b3; }
             </style>
         </head>
         <body>
             <div class="container">
-                <img src="/static/logo.png" alt="Logo">
-                <h2>Preenchimento de Checklist</h2>
-                <form method="post">
-                    <label>Nome do Colaborador:</label>
-                    <input type="text" name="nome" required>
-                    <label>ID do Checklist:</label>
-                    <input type="text" name="id_checklist" required>
-                    <label>Data de Início:</label>
-                    <input type="datetime-local" name="data_inicio" required>
-                    <label>Data de Fim:</label>
-                    <input type="datetime-local" name="data_fim" required>
-                    <label>Descrição da Atividade:</label>
-                    <input type="text" name="descricao" required>
-                    <input type="submit" value="Salvar">
+                <h2>Registros do Checklist</h2>
+                <form method="POST">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Selecionar</th>
+                                    <th>ID</th>
+                                    <th>Nome do Colaborador</th>
+                                    <th>ID do Checklist</th>
+                                    <th>Data de Início</th>
+                                    <th>Data de Fim</th>
+                                    <th>Duração</th>
+                                    <th>Descrição da Atividade</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ''' + "".join(f"""
+                                <tr>
+                                    <td><input type='checkbox' name='selecionados' value='{row["ID"]}'></td>
+                                    <td>{row["ID"]}</td>
+                                    <td>{row["Nome do Colaborador"]}</td>
+                                    <td>{row["ID do Checklist"]}</td>
+                                    <td>{row["Data de Início"]}</td>
+                                    <td>{row["Data de Fim"]}</td>
+                                    <td>{row["Duração"]}</td>
+                                    <td>{row["Descrição da Atividade"]}</td>
+                                </tr>
+                                """ for _, row in df.iterrows()) + '''
+                            </tbody>
+                        </table>
+                    </div>
+                    <br>
+                    <button type="submit">Excluir Selecionados</button>
                 </form>
-                <a href="/download" class="button">Baixar Checklist</a>
-                <a href="/listar" class="button">Ver Registros</a>
+                <br>
+                <a href="/" class="button">Voltar</a>
+                <a href="/baixar" class="button">Baixar Planilha</a>
             </div>
         </body>
         </html>
     '''
     
-    if request.method == "POST":
-        df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-        novo_id = len(df) + 1
-        nome = request.form["nome"].strip()
-        id_checklist = request.form["id_checklist"].strip()
-        data_inicio = request.form["data_inicio"].strip()
-        data_fim = request.form["data_fim"].strip()
-        descricao = request.form["descricao"].strip()
+    return render_template_string(LISTAR_PAGE)
 
-        try:
-            dt_inicio = datetime.strptime(data_inicio, "%Y-%m-%dT%H:%M")
-            dt_fim = datetime.strptime(data_fim, "%Y-%m-%dT%H:%M")
-            duracao = str(dt_fim - dt_inicio)
-        except ValueError:
-            duracao = "Erro no cálculo"
-
-        novo_registro = pd.DataFrame([{ 
-            "ID": novo_id,
-            "Nome do Colaborador": nome, 
-            "ID do Checklist": id_checklist, 
-            "Data de Início": data_inicio, 
-            "Data de Fim": data_fim, 
-            "Duração": duracao, 
-            "Descrição da Atividade": descricao 
-        }])
-
-        df = pd.concat([df, novo_registro], ignore_index=True)
-        df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
-        return redirect(url_for('form'))
-    
-    return render_template_string(FORMULARIO_PAGE)
-
-@app.route("/listar", methods=["GET", "POST"])
-def listar():
-    df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-    registros = df.to_dict(orient='records')
-    html_page = '''
-        <html>
-        <head>
-            <style>
-                table { width: 100%; border-collapse: collapse; }
-                th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
-                th { background-color: #f4f4f4; }
-                .button { padding: 8px 12px; color: white; background: red; text-decoration: none; border-radius: 4px; }
-            </style>
-        </head>
-        <body>
-            <h2>Registros</h2>
-            <form action="/deletar" method="post">
-                <table>
-                    <tr>
-                        <th>Selecionar</th>
-                        <th>ID</th>
-                        <th>Nome</th>
-                        <th>ID Checklist</th>
-                        <th>Data Início</th>
-                        <th>Data Fim</th>
-                        <th>Duração</th>
-                        <th>Descrição</th>
-                    </tr>
-                    {rows}
-                </table>
-                <input type="submit" value="Deletar Selecionados">
-            </form>
-            <a href="/" class="button">Voltar</a>
-        </body>
-        </html>
-    '''
-    rows = ''.join([f'<tr><td><input type="checkbox" name="delete_ids" value="{r["ID"]}"></td>' + ''.join([f'<td>{v}</td>' for v in r.values()]) + '</tr>' for r in registros])
-    return html_page.replace('{rows}', rows)
-
-@app.route("/deletar", methods=["POST"])
-def deletar():
-    ids_para_deletar = request.form.getlist("delete_ids")
-    df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-    df = df[~df["ID"].astype(str).isin(ids_para_deletar)]
-    df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
-    return redirect(url_for('listar'))
-
-@app.route("/download")
-def download():
+@app.route("/baixar")
+def baixar():
     return send_file(EXCEL_FILE, as_attachment=True)
 
 if __name__ == "__main__":
