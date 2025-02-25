@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, send_file, jsonify
+from flask import Flask, request, render_template_string, send_file
 import pandas as pd
 import os
 
@@ -186,65 +186,11 @@ def form():
 def download():
     return send_file(EXCEL_FILE, as_attachment=True)
 
-@app.route("/listar", methods=["GET", "POST"])
+@app.route("/listar")
 def listar():
     df = pd.read_excel(EXCEL_FILE)
-    registros = df.to_html(classes="table table-striped", index=True, escape=False)
+    registros = df.to_html(classes="table table-striped", index=False)
 
-    if request.method == "POST":
-        selected_indices = request.form.getlist("selected_records")
-        if selected_indices:
-            df.drop(df.index[[int(i) for i in selected_indices]], inplace=True)
-            df.to_excel(EXCEL_FILE, index=False)
-            return '''
-            <html>
-            <head>
-                <style>
-                    body {
-                        font-family: Arial, sans-serif;
-                        background-color: #ffffff;
-                        display: flex;
-                        justify-content: center;
-                        align-items: center;
-                        height: 100vh;
-                        margin: 0;
-                        flex-direction: column;
-                    }
-                    .container {
-                        background: #808080;
-                        padding: 20px;
-                        border-radius: 8px;
-                        box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                        width: 350px;
-                        text-align: center;
-                    }
-                    .button {
-                        background: #008000;
-                        color: white;
-                        border: none;
-                        cursor: pointer;
-                        font-size: 18px;
-                        font-weight: bold;
-                        padding: 10px;
-                        border-radius: 4px;
-                        text-decoration: none;
-                        display: inline-block;
-                        margin-top: 10px;
-                    }
-                    .button:hover {
-                        background: #006400;
-                    }
-                </style>
-            </head>
-            <body>
-                <div class="container">
-                    <h2>Registros apagados com sucesso!</h2>
-                    <a href="/listar" class="button">Ver Registros</a>
-                </div>
-            </body>
-            </html>
-            '''
-    
     return render_template_string(f'''
     <html>
     <head>
@@ -253,48 +199,11 @@ def listar():
             table {{ width: 80%; margin: 20px auto; border-collapse: collapse; }}
             th, td {{ padding: 10px; text-align: left; border: 1px solid #ccc; }}
             th {{ background-color: #f2f2f2; }}
-            input[type="checkbox"] {{
-                margin-right: 10px;
-            }}
         </style>
-        <script>
-            function confirmarApagar() {{
-                var confirmar = confirm("Deseja realmente apagar os registros selecionados?");
-                return confirmar;
-            }}
-        </script>
     </head>
     <body>
         <h2 style="text-align:center;">Lista de Registros</h2>
-        <form method="post" onsubmit="return confirmarApagar()">
-            <table>
-                <thead>
-                    <tr>
-                        <th>Selecionar</th>
-                        <th>Nome do Colaborador</th>
-                        <th>ID do Checklist</th>
-                        <th>Data de Início</th>
-                        <th>Data de Fim</th>
-                        <th>Descrição da Atividade</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for index, row in df.iterrows() %}
-                    <tr>
-                        <td><input type="checkbox" name="selected_records" value="{{ index }}"></td>
-                        <td>{{ row['Nome do Colaborador'] }}</td>
-                        <td>{{ row['ID do Checklist'] }}</td>
-                        <td>{{ row['Data de Início'] }}</td>
-                        <td>{{ row['Data de Fim'] }}</td>
-                        <td>{{ row['Descrição da Atividade'] }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <div style="text-align:center;">
-                <input type="submit" value="Apagar Selecionados" class="button">
-            </div>
-        </form>
+        {registros}
         <div style="text-align:center;">
             <a href="/" class="button">Voltar ao Formulário</a>
         </div>
@@ -303,4 +212,5 @@ def listar():
     ''')
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
