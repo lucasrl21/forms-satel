@@ -62,10 +62,15 @@ def form():
                     margin-top: 10px;
                 }
                 .button:hover { background: #218838; }
+                img {
+                    width: 100px;
+                    margin-bottom: 10px;
+                }
             </style>
         </head>
         <body>
             <div class="container">
+                <img src="/static/logo.png" alt="Logo">
                 <h2>Preenchimento de Checklist</h2>
                 <form method="post">
                     <label>Nome do Colaborador:</label>
@@ -119,39 +124,50 @@ def form():
     
     return render_template_string(FORMULARIO_PAGE)
 
-@app.route("/listar")
+@app.route("/listar", methods=["GET", "POST"])
 def listar():
     df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-    html_table = df.to_html(index=False, escape=False)
-    html_page = f'''
+    registros = df.to_dict(orient='records')
+    html_page = '''
         <html>
         <head>
             <style>
-                table {{ width: 100%; border-collapse: collapse; }}
-                th, td {{ padding: 10px; border: 1px solid #ddd; text-align: left; }}
-                th {{ background-color: #f4f4f4; }}
-                .button {{ padding: 8px 12px; color: white; background: red; text-decoration: none; border-radius: 4px; }}
+                table { width: 100%; border-collapse: collapse; }
+                th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+                th { background-color: #f4f4f4; }
+                .button { padding: 8px 12px; color: white; background: red; text-decoration: none; border-radius: 4px; }
             </style>
         </head>
         <body>
             <h2>Registros</h2>
-            {html_table}
             <form action="/deletar" method="post">
-                <label>ID para deletar:</label>
-                <input type="number" name="id" required>
-                <input type="submit" value="Deletar">
+                <table>
+                    <tr>
+                        <th>Selecionar</th>
+                        <th>ID</th>
+                        <th>Nome</th>
+                        <th>ID Checklist</th>
+                        <th>Data Início</th>
+                        <th>Data Fim</th>
+                        <th>Duração</th>
+                        <th>Descrição</th>
+                    </tr>
+                    {rows}
+                </table>
+                <input type="submit" value="Deletar Selecionados">
             </form>
             <a href="/" class="button">Voltar</a>
         </body>
         </html>
     '''
-    return html_page
+    rows = ''.join([f'<tr><td><input type="checkbox" name="delete_ids" value="{r["ID"]}"></td>' + ''.join([f'<td>{v}</td>' for v in r.values()]) + '</tr>' for r in registros])
+    return html_page.replace('{rows}', rows)
 
 @app.route("/deletar", methods=["POST"])
 def deletar():
-    id_para_deletar = int(request.form["id"])
+    ids_para_deletar = request.form.getlist("delete_ids")
     df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-    df = df[df["ID"] != id_para_deletar]
+    df = df[~df["ID"].astype(str).isin(ids_para_deletar)]
     df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
     return redirect(url_for('listar'))
 
