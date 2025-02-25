@@ -60,6 +60,10 @@ def index():
                     width: 400px;
                     text-align: center;
                 }
+                img {
+                    width: 150px;
+                    margin-bottom: 10px;
+                }
                 input, textarea {
                     width: 100%;
                     padding: 10px;
@@ -68,18 +72,19 @@ def index():
                     border: 1px solid #ddd;
                 }
                 button {
-                    background: #007bff;
+                    background: #28a745;
                     color: white;
                     border: none;
                     padding: 10px;
                     border-radius: 4px;
                     cursor: pointer;
                 }
-                button:hover { background: #0056b3; }
+                button:hover { background: #218838; }
             </style>
         </head>
         <body>
             <div class="container">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/a/ab/Logo_Teste.png" alt="Logo">
                 <h2>Registro de Atividade</h2>
                 <form method="POST">
                     <input type="text" name="nome" placeholder="Nome do Colaborador" required>
@@ -105,7 +110,10 @@ def index():
 @app.route("/listar", methods=["GET", "POST"])
 def listar():
     df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-    
+
+    if df.empty:
+        return "<h3>Nenhum registro encontrado. <a href='/'>Voltar</a></h3>"
+
     if request.method == "POST":
         ids_para_excluir = request.form.getlist("selecionados")
         df = df[~df["ID"].astype(str).isin(ids_para_excluir)]
