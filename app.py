@@ -1,6 +1,7 @@
-from flask import Flask, request, render_template_string, send_file
+from flask import Flask, request, render_template_string, send_file, redirect, url_for
 import pandas as pd
 import os
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -9,9 +10,8 @@ EXCEL_FILE = "checklist_data.xlsx"
 # Criar arquivo Excel se não existir
 def initialize_excel():
     if not os.path.exists(EXCEL_FILE):
-        df = pd.DataFrame(columns=["Nome do Colaborador", "ID do Checklist", "Data de Início", "Data de Fim", "Duração", "Descrição da Atividade"])
-        with pd.ExcelWriter(EXCEL_FILE, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False)
+        df = pd.DataFrame(columns=["ID", "Nome do Colaborador", "ID do Checklist", "Data de Início", "Data de Fim", "Duração", "Descrição da Atividade"])
+        df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
 
 initialize_excel()
 
@@ -23,7 +23,7 @@ def form():
             <style>
                 body {
                     font-family: Arial, sans-serif;
-                    background-color: #ffffff;
+                    background-color: #f4f4f4;
                     display: flex;
                     justify-content: center;
                     align-items: center;
@@ -32,16 +32,12 @@ def form():
                     flex-direction: column;
                 }
                 .container {
-                    background: #808080;
+                    background: #fff;
                     padding: 20px;
                     border-radius: 8px;
                     box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
                     width: 350px;
                     text-align: center;
-                }
-                img {
-                    width: 100px;
-                    margin-bottom: 10px;
                 }
                 input {
                     width: 100%;
@@ -51,8 +47,8 @@ def form():
                     border-radius: 4px;
                     font-size: 16px;
                 }
-                input[type="submit"] {
-                    background: #008000;
+                input[type="submit"], .button {
+                    background: #28a745;
                     color: white;
                     border: none;
                     cursor: pointer;
@@ -61,33 +57,15 @@ def form():
                     padding: 10px;
                     border-radius: 4px;
                     width: 100%;
-                }
-                input[type="submit"]:hover {
-                    background: #006400;
-                }
-                .button {
-                    background: #008000;
-                    color: white;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 18px;
-                    font-weight: bold;
-                    padding: 10px;
-                    border-radius: 4px;
                     text-decoration: none;
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 8px;
+                    display: block;
                     margin-top: 10px;
                 }
-                .button:hover {
-                    background: #006400;
-                }
+                .button:hover { background: #218838; }
             </style>
         </head>
         <body>
             <div class="container">
-                <img src="/static/logo.png" alt="Logo">
                 <h2>Preenchimento de Checklist</h2>
                 <form method="post">
                     <label>Nome do Colaborador:</label>
@@ -102,115 +80,84 @@ def form():
                     <input type="text" name="descricao" required>
                     <input type="submit" value="Salvar">
                 </form>
-                <a href="/download" class="button">&#x1F4E5; Baixar Checklist</a>
-                <a href="/listar" class="button">&#x1F4C3; Ver Registros</a>
+                <a href="/download" class="button">Baixar Checklist</a>
+                <a href="/listar" class="button">Ver Registros</a>
             </div>
         </body>
         </html>
     '''
     
     if request.method == "POST":
+        df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
+        novo_id = len(df) + 1
         nome = request.form["nome"].strip()
         id_checklist = request.form["id_checklist"].strip()
         data_inicio = request.form["data_inicio"].strip()
         data_fim = request.form["data_fim"].strip()
         descricao = request.form["descricao"].strip()
 
-        df = pd.read_excel(EXCEL_FILE)
-        novo_registro = pd.DataFrame([{
-            "Nome do Colaborador": nome,
-            "ID do Checklist": id_checklist,
-            "Data de Início": data_inicio,
-            "Data de Fim": data_fim,
-            "Duração": "",
-            "Descrição da Atividade": descricao
+        try:
+            dt_inicio = datetime.strptime(data_inicio, "%Y-%m-%dT%H:%M")
+            dt_fim = datetime.strptime(data_fim, "%Y-%m-%dT%H:%M")
+            duracao = str(dt_fim - dt_inicio)
+        except ValueError:
+            duracao = "Erro no cálculo"
+
+        novo_registro = pd.DataFrame([{ 
+            "ID": novo_id,
+            "Nome do Colaborador": nome, 
+            "ID do Checklist": id_checklist, 
+            "Data de Início": data_inicio, 
+            "Data de Fim": data_fim, 
+            "Duração": duracao, 
+            "Descrição da Atividade": descricao 
         }])
 
         df = pd.concat([df, novo_registro], ignore_index=True)
+        df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
+        return redirect(url_for('form'))
+    
+    return render_template_string(FORMULARIO_PAGE)
 
-        df.to_excel(EXCEL_FILE, index=False)
-
-        return '''
+@app.route("/listar")
+def listar():
+    df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
+    html_table = df.to_html(index=False, escape=False)
+    html_page = f'''
         <html>
         <head>
             <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background-color: #ffffff;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    flex-direction: column;
-                }
-                .container {
-                    background: #808080;
-                    padding: 20px;
-                    border-radius: 8px;
-                    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                    width: 350px;
-                    text-align: center;
-                }
-                .button {
-                    background: #008000;
-                    color: white;
-                    border: none;
-                    cursor: pointer;
-                    font-size: 18px;
-                    font-weight: bold;
-                    padding: 10px;
-                    border-radius: 4px;
-                    text-decoration: none;
-                    display: inline-block;
-                    margin-top: 10px;
-                }
-                .button:hover {
-                    background: #006400;
-                }
+                table {{ width: 100%; border-collapse: collapse; }}
+                th, td {{ padding: 10px; border: 1px solid #ddd; text-align: left; }}
+                th {{ background-color: #f4f4f4; }}
+                .button {{ padding: 8px 12px; color: white; background: red; text-decoration: none; border-radius: 4px; }}
             </style>
         </head>
         <body>
-            <div class="container">
-                <h2>Registro salvo com sucesso!</h2>
-                <a href="/" class="button">Voltar ao formulário</a>
-                <a href="/listar" class="button">Ver Registros</a>
-            </div>
+            <h2>Registros</h2>
+            {html_table}
+            <form action="/deletar" method="post">
+                <label>ID para deletar:</label>
+                <input type="number" name="id" required>
+                <input type="submit" value="Deletar">
+            </form>
+            <a href="/" class="button">Voltar</a>
         </body>
         </html>
-        '''
-    
-    return render_template_string(FORMULARIO_PAGE)
+    '''
+    return html_page
+
+@app.route("/deletar", methods=["POST"])
+def deletar():
+    id_para_deletar = int(request.form["id"])
+    df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
+    df = df[df["ID"] != id_para_deletar]
+    df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
+    return redirect(url_for('listar'))
 
 @app.route("/download")
 def download():
     return send_file(EXCEL_FILE, as_attachment=True)
 
-@app.route("/listar")
-def listar():
-    df = pd.read_excel(EXCEL_FILE)
-    registros = df.to_html(classes="table table-striped", index=False)
-
-    return render_template_string(f'''
-    <html>
-    <head>
-        <style>
-            body {{ font-family: Arial, sans-serif; }}
-            table {{ width: 80%; margin: 20px auto; border-collapse: collapse; }}
-            th, td {{ padding: 10px; text-align: left; border: 1px solid #ccc; }}
-            th {{ background-color: #f2f2f2; }}
-        </style>
-    </head>
-    <body>
-        <h2 style="text-align:center;">Lista de Registros</h2>
-        {registros}
-        <div style="text-align:center;">
-            <a href="/" class="button">Voltar ao Formulário</a>
-        </div>
-    </body>
-    </html>
-    ''')
-
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(debug=True)
