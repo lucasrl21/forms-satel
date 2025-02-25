@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string, send_file
+from flask import Flask, request, render_template_string, send_file, url_for
 import pandas as pd
 import os
 from datetime import datetime
@@ -54,11 +54,11 @@ def index():
                     width: 90%;
                     max-width: 400px;
                     text-align: center;
+                    position: relative;
                 }
                 .logo {
-                    width: 120px;
-                    display: block;
-                    margin: 0 auto 10px auto;
+                    width: 100px;
+                    margin-bottom: 10px;
                 }
                 input, button {
                     width: 100%;
@@ -88,7 +88,7 @@ def index():
         </head>
         <body>
             <div class="container">
-                <img src="https://via.placeholder.com/120" class="logo" alt="Logo">
+                <img src="{{ url_for('static', filename='logo.png') }}" class="logo" alt="Logo">
                 <h2>Registrar Atividade</h2>
                 <form method="POST">
                     <input type="text" name="nome" placeholder="Nome do Colaborador" required><br>
