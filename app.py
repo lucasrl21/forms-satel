@@ -1,230 +1,109 @@
-from flask import Flask, request, render_template_string, send_file
-import pandas as pd
-import os
-from datetime import datetime
+import sqlite3
+import tkinter as tk
+from tkinter import ttk, messagebox
+from PIL import Image, ImageTk
 
-app = Flask(__name__)
+# Criando banco de dados SQLite
+def criar_tabela():
+    conexao = sqlite3.connect("dados.db")
+    cursor = conexao.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS registros (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        nome TEXT NOT NULL,
+                        valor TEXT NOT NULL)''')
+    conexao.commit()
+    conexao.close()
 
-EXCEL_FILE = "checklist_data.xlsx"
+criar_tabela()
 
-# Criar arquivo Excel se não existir
-def initialize_excel():
-    if not os.path.exists(EXCEL_FILE):
-        df = pd.DataFrame(columns=["ID", "Nome do Colaborador", "ID do Checklist", "Data de Início", "Data de Fim", "Duração", "Descrição da Atividade"])
-        df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
+# Função para inserir dados
+def inserir_dados():
+    nome = entry_nome.get()
+    valor = entry_valor.get()
+    if nome and valor:
+        conexao = sqlite3.connect("dados.db")
+        cursor = conexao.cursor()
+        cursor.execute("INSERT INTO registros (nome, valor) VALUES (?, ?)", (nome, valor))
+        conexao.commit()
+        conexao.close()
+        messagebox.showinfo("Sucesso", "Dados inseridos com sucesso!")
+        entry_nome.delete(0, tk.END)
+        entry_valor.delete(0, tk.END)
+        atualizar_lista()
+    else:
+        messagebox.showwarning("Aviso", "Preencha todos os campos!")
 
-initialize_excel()
+# Função para buscar dados
+def buscar_dados():
+    tree.delete(*tree.get_children())
+    conexao = sqlite3.connect("dados.db")
+    cursor = conexao.cursor()
+    cursor.execute("SELECT * FROM registros")
+    for row in cursor.fetchall():
+        tree.insert("", tk.END, values=row)
+    conexao.close()
 
-@app.route("/", methods=["GET", "POST"])
-def index():
-    if request.method == "POST":
-        nome = request.form["nome"]
-        checklist_id = request.form["checklist_id"]
-        data_inicio = request.form["data_inicio"]
-        data_fim = request.form["data_fim"]
-        descricao = request.form["descricao"]
-        
-        inicio = datetime.strptime(data_inicio, "%Y-%m-%dT%H:%M")
-        fim = datetime.strptime(data_fim, "%Y-%m-%dT%H:%M")
-        duracao = round((fim - inicio).total_seconds() / 3600, 2)
+# Função para excluir registros selecionados
+def excluir_dados():
+    selecionados = tree.selection()
+    if not selecionados:
+        messagebox.showwarning("Aviso", "Selecione pelo menos um registro para excluir!")
+        return
+    conexao = sqlite3.connect("dados.db")
+    cursor = conexao.cursor()
+    for item in selecionados:
+        id_registro = tree.item(item, "values")[0]
+        cursor.execute("DELETE FROM registros WHERE id = ?", (id_registro,))
+    conexao.commit()
+    conexao.close()
+    buscar_dados()
 
-        df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-        new_id = len(df) + 1
-        df.loc[len(df)] = [new_id, nome, checklist_id, data_inicio, data_fim, duracao, descricao]
-        df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
+# Criando a interface
+tela = tk.Tk()
+tela.title("Cadastro de Dados")
+tela.geometry("500x400")
+tela.configure(bg="white")
 
-    FORM_PAGE = '''
-        <html>
-        <head>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background-color: #BFBFBF;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    flex-direction: column;
-                }
-                .container {
-                    background: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                    width: 90%;
-                    max-width: 400px;
-                    text-align: center;
-                }
-                input, button {
-                    width: 100%;
-                    padding: 10px;
-                    margin: 5px 0;
-                    border: 1px solid #ccc;
-                    border-radius: 4px;
-                }
-                button {
-                    background: #28a745;
-                    color: white;
-                    cursor: pointer;
-                }
-                button:hover { background: #218838; }
-                a {
-                    display: block;
-                    margin-top: 10px;
-                    text-decoration: none;
-                    color: white;
-                    background: #007bff;
-                    padding: 10px;
-                    border-radius: 4px;
-                }
-                a:hover { background: #0056b3; }
-            </style>
-        </head>
-        <body>
-            <img src="https://via.placeholder.com/150" alt="Logo"><br>
-            <div class="container">
-                <h2>Registrar Atividade</h2>
-                <form method="POST">
-                    <input type="text" name="nome" placeholder="Nome do Colaborador" required><br>
-                    <input type="text" name="checklist_id" placeholder="ID do Checklist" required><br>
-                    <label>Data de Início:</label><input type="datetime-local" name="data_inicio" required><br>
-                    <label>Data de Fim:</label><input type="datetime-local" name="data_fim" required><br>
-                    <input type="text" name="descricao" placeholder="Descrição da Atividade" required><br>
-                    <button type="submit">Salvar Registro</button>
-                </form>
-                <a href="/listar">Consultar Registros</a>
-                <a href="/baixar">Baixar Registros</a>
-            </div>
-        </body>
-        </html>
-    '''
-    return render_template_string(FORM_PAGE)
+frame_principal = tk.Frame(tela, bg="#E0E0E0", padx=10, pady=10)
+frame_principal.pack(pady=20, padx=20, fill="both", expand=True)
 
-@app.route("/listar", methods=["GET", "POST"])
-def listar():
-    df = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-    
-    if request.method == "POST":
-        ids_para_excluir = request.form.getlist("selecionados")
-        df = df[~df["ID"].astype(str).isin(ids_para_excluir)]
-        df.to_excel(EXCEL_FILE, index=False, engine='openpyxl')
+# Logo
+try:
+    imagem = Image.open("logo.png")
+    imagem = imagem.resize((100, 100))
+    logo = ImageTk.PhotoImage(imagem)
+    label_logo = tk.Label(frame_principal, image=logo, bg="#E0E0E0")
+    label_logo.pack()
+except Exception as e:
+    print("Erro ao carregar a imagem:", e)
 
-    registros_html = df.to_html(index=False, classes='table table-striped', escape=False)
+# Campos de entrada
+tk.Label(frame_principal, text="Nome:", bg="#E0E0E0").pack()
+entry_nome = tk.Entry(frame_principal)
+entry_nome.pack()
 
-    LISTAR_PAGE = '''
-        <html>
-        <head>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    background-color: #BFBFBF;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    height: 100vh;
-                    margin: 0;
-                    flex-direction: column;
-                }
-                .container {
-                    background: white;
-                    padding: 20px;
-                    border-radius: 8px;
-                    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.2);
-                    width: 90%;
-                    max-width: 1200px;
-                    text-align: center;
-                }
-                .table-container {
-                    max-height: 500px;
-                    overflow-y: auto;
-                    overflow-x: auto;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                }
-                table {
-                    width: 100%;
-                    border-collapse: collapse;
-                }
-                th, td {
-                    padding: 10px;
-                    border: 1px solid #ddd;
-                    text-align: left;
-                }
-                th {
-                    background: #28a745;
-                    color: white;
-                }
-                button {
-                    background: #dc3545;
-                    color: white;
-                    padding: 10px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    border: none;
-                }
-                button:hover { background: #c82333; }
-                a {
-                    display: inline-block;
-                    margin-top: 10px;
-                    text-decoration: none;
-                    color: white;
-                    background: #007bff;
-                    padding: 10px;
-                    border-radius: 4px;
-                }
-                a:hover { background: #0056b3; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h2>Registros do Checklist</h2>
-                <form method="POST">
-                    <div class="table-container">
-                        <table>
-                            <thead>
-                                <tr>
-                                    <th>Selecionar</th>
-                                    <th>ID</th>
-                                    <th>Nome do Colaborador</th>
-                                    <th>ID do Checklist</th>
-                                    <th>Data de Início</th>
-                                    <th>Data de Fim</th>
-                                    <th>Duração</th>
-                                    <th>Descrição da Atividade</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ''' + "".join(f"""
-                                <tr>
-                                    <td><input type='checkbox' name='selecionados' value='{row["ID"]}'></td>
-                                    <td>{row["ID"]}</td>
-                                    <td>{row["Nome do Colaborador"]}</td>
-                                    <td>{row["ID do Checklist"]}</td>
-                                    <td>{row["Data de Início"]}</td>
-                                    <td>{row["Data de Fim"]}</td>
-                                    <td>{row["Duração"]}</td>
-                                    <td>{row["Descrição da Atividade"]}</td>
-                                </tr>
-                                """ for _, row in df.iterrows()) + '''
-                            </tbody>
-                        </table>
-                    </div>
-                    <br>
-                    <button type="submit">Excluir Selecionados</button>
-                </form>
-                <br>
-                <a href="/">Voltar</a>
-                <a href="/baixar">Baixar Planilha</a>
-            </div>
-        </body>
-        </html>
-    '''
-    return render_template_string(LISTAR_PAGE)
+tk.Label(frame_principal, text="Valor:", bg="#E0E0E0").pack()
+entry_valor = tk.Entry(frame_principal)
+entry_valor.pack()
 
-@app.route("/baixar")
-def baixar():
-    return send_file(EXCEL_FILE, as_attachment=True)
+# Botões
+btn_inserir = tk.Button(frame_principal, text="Inserir", bg="green", fg="white", command=inserir_dados)
+btn_inserir.pack(pady=5)
 
-if __name__ == "__main__":
-    app.run(debug=True)
+btn_buscar = tk.Button(frame_principal, text="Buscar", bg="green", fg="white", command=buscar_dados)
+btn_buscar.pack(pady=5)
+
+btn_excluir = tk.Button(frame_principal, text="Excluir Selecionados", bg="green", fg="white", command=excluir_dados)
+btn_excluir.pack(pady=5)
+
+# Tabela para exibir os dados
+tree = ttk.Treeview(frame_principal, columns=("ID", "Nome", "Valor"), show="headings")
+tree.heading("ID", text="ID")
+tree.heading("Nome", text="Nome")
+tree.heading("Valor", text="Valor")
+tree.pack(fill="both", expand=True)
+
+# Atualizar lista ao iniciar
+buscar_dados()
+
+tela.mainloop()
